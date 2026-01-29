@@ -5,10 +5,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
 from datetime import datetime
 import openpyxl, os, re, time
 import requests 
-import math
 
 # ======= 設定 =======
 wid_list = [
@@ -29,13 +29,20 @@ HEADER_ORDER = [
 ]
 
 # ======= 啟動 Driver =======
-def launch_driver(headless=False):
-    options = webdriver.ChromeOptions()
+def launch_driver(headless=True):
+    options = Options()
     if headless:
-        options.add_argument("--headless=new")
-    options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_argument("--headless")
+    
+    # These flags are required for running in a Docker/Cloud environment
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    
+    # Path for Streamlit Cloud specifically
+    if os.path.exists("/usr/bin/chromium-browser"):
+        options.binary_location = "/usr/bin/chromium-browser"
+    
     service = Service(ChromeDriverManager().install())
     return webdriver.Chrome(service=service, options=options)
 
@@ -193,13 +200,12 @@ def scrape_one_wid(driver, wid):
     # 若 API 失敗，退回 DOM 備援
     if tgt_stock_price is None:
         dom_price = get_target_best_ask_from_dom(driver)
-
-    try:
-    # Try to convert the scraped text to a number
-        tgt_stock_price = float(dom_price)
-    except (ValueError, TypeError):
-    # If it's empty ("") or text ("權證張數"), just leave it as a blank string
-        tgt_stock_price = ""
+        try:
+            # Try to convert the scraped text to a number
+            tgt_stock_price = float(dom_price)
+        except (ValueError, TypeError):
+            # If it's empty ("") or text ("權證張數"), just leave it as a blank string
+            tgt_stock_price = ""
 
     row = {
         "WID": wid,
