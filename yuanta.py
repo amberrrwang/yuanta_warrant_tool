@@ -34,16 +34,25 @@ def launch_driver(headless=True):
     if headless:
         options.add_argument("--headless")
     
-    # These flags are required for running in a Docker/Cloud environment
+    # 雲端運算必備參數
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
     
-    # Path for Streamlit Cloud specifically
-    if os.path.exists("/usr/bin/chromium-browser"):
+    # 這是最關鍵的一步：指定 Streamlit Cloud 的 Chromium 路徑
+    if os.path.exists("/usr/bin/chromium"):
+        options.binary_location = "/usr/bin/chromium"
+    elif os.path.exists("/usr/bin/chromium-browser"):
         options.binary_location = "/usr/bin/chromium-browser"
-    
-    service = Service(ChromeDriverManager().install())
+
+    # 在 Streamlit Cloud 上，我們不使用 webdriver-manager，直接指定路徑
+    if os.path.exists("/usr/bin/chromedriver"):
+        service = Service("/usr/bin/chromedriver")
+    else:
+        # 如果是在你的 MacBook 上跑，就用原本的方式
+        from webdriver_manager.chrome import ChromeDriverManager
+        service = Service(ChromeDriverManager().install())
+        
     return webdriver.Chrome(service=service, options=options)
 
 # ======= 抓資料輔助 =======
